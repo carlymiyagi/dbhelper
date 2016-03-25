@@ -1,0 +1,14 @@
+{
+  "name": "dynamodbhelper",
+  "version": "0.0.1",
+  "description": "Helper library for putting and getting dynamodb documents",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Stephen Lombardi",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "aws-sdk": "^2.2.47"
+  }
+}
