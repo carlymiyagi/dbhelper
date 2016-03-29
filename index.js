@@ -5,21 +5,48 @@ function DynamoDBHelper(){
     AWS.config.update({region:'us-east-1'});
     this.docClient = new AWS.DynamoDB.DocumentClient();
     
-    this.putitem = function putItem(object, tablename, callback, update){
-        cleanJSON(object);
+    this.putitem = function putItem(object, tablename, callback){
         var params = {
             TableName: tablename,
             Item: object
         }
 
-        if(!update){
-            this.dbrequest(this.docClient, 'put', params, function sliceCallback(err, data) {
-                callback(err)
-            });
-        }else{
-            this.docClient.update(params, callback);
-        }
+        this.dbrequest(this.docClient, 'put', params, function putCallback(err, data) {
+            callback(err)
+        });
     };
+    
+    this.replaceitem = function replaceItem(key, item, tablename, callback){
+        var params = {
+            Key: {},
+            TableName: tablename
+        }
+        
+        params.Key[key] = item[key];
+        var req = this.dbrequest
+        ,dc = this.docClient;
+        new Promise(function(resolve, reject){
+            req(dc, 'delete', params, function putCallback(err, data) {
+                if(err) {
+                    callback(err);
+                    reject(err);
+                }else{
+                    resolve();
+                }
+            });
+        }).then(function(err){
+            if(!err){
+                var params = {
+                    TableName: tablename,
+                    Item: item
+                }
+
+                req(dc, 'put', params, function putCallback(err, data) {
+                    callback(err)
+                });
+            }
+        });        
+    }
 
     this.putitems = function putItems(items, tablename, callback){ 
         var error;
@@ -44,7 +71,8 @@ function DynamoDBHelper(){
     this.dbrequest = function(docClient, command, params, cb) {
         (function retry(i) {
             if(command == 'batchWrite') { docClient.batchWrite(params, dbCallback); }
-            else if(command == 'put') { docClient.put(params, dbCallback); } 
+            else if(command == 'put') { docClient.put(params, dbCallback); }
+            else if(command == 'delete') { docClient.delete(params, dbCallback); } 
             
             
             function dbCallback(err, data) {
@@ -54,7 +82,7 @@ function DynamoDBHelper(){
                     err.name == "ProvisionedThroughputExceededException" ||
                     err.name == "ThrottlingException"
                     )) {
-                        console.log("Throttling... ", 50 << i, ' ms')
+                        //console.log("Throttling... ", 50 << i, ' ms')
                         setTimeout(retry, 50 << i, i + 1)
                     }
 
@@ -63,7 +91,7 @@ function DynamoDBHelper(){
                     params.RequestItems = data.UnprocessedItems;
                     this.dbrequest(command, params, cb);
                 } else {
-                    if(i>0) { console.log('Succesful write after throttle of ', 50 << i, ' ms'); }
+                    //if(i>0) { console.log('Succesful write after throttle of ', 50 << i, ' ms'); }
                     cb(null, data);
                 }
             }
@@ -73,7 +101,7 @@ function DynamoDBHelper(){
 
 function cleanJSON(object) {
     for (var i in object) {
-        if (object[i] === null || object[i] == '') {
+        if (object[i] == null || object[i] == '') {
             delete object[i];
         } else if (typeof object[i] === 'object') {
             cleanJSON(object[i]);
@@ -81,22 +109,30 @@ function cleanJSON(object) {
     }
 }
 
-function put(object, tablename, callback, update){
+function put(objects, tablename, callback){
+    if(!objects){ callback('DynamoDBHelper: Item undefined'); return; }
     var helper = new DynamoDBHelper();
-    helper.putitem(object, tablename, callback, update);    
+    
+    if(Array.isArray(objects)){
+        var items = [];
+        objects.forEach(function(item){
+            cleanJSON(item);
+            items.push( { PutRequest: { Item: item } } );
+        })
+        helper.putitems(items, tablename, callback); 
+    }else{
+        cleanJSON(objects);
+        helper.putitem(objects, tablename, callback);
+    }
 }
 
-function putAll(objects, tablename, callback){
-    if(!objects || !Array.isArray(objects)){}
-    var helper = new DynamoDBHelper();
-    var items = [];
-    objects.forEach(function(item){
-        cleanJSON(item);
-        items.push( { PutRequest: { Item: item } } );
-    })
-    helper.putitems(items, tablename, callback); 
+function replace(keyName, item, tablename, callback){
+    if(!item){ callback('DynamoDBHelper: Item undefined'); return; }
+    cleanJSON(item);
+    new DynamoDBHelper().replaceitem(keyName, item, tablename, callback);
 }
+
 
 exports.DynamoDBHelper = DynamoDBHelper;
 exports.put = put;
-exports.putAll = putAll;
+exports.replace = replace;
