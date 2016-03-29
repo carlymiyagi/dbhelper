@@ -16,6 +16,7 @@ function DynamoDBHelper(){
         });
     };
     
+    //TODO: This is very messy especially with the clone of the putItems function in the then
     this.replaceitem = function replaceItem(key, item, tablename, callback){
         var params = {
             Key: {},
