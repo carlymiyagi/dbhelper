@@ -1,5 +1,5 @@
 {
-  "name": "dynamodbhelper",
+  "name": "dbhelper",
   "version": "0.0.1",
   "description": "Helper library for putting and getting dynamodb documents",
   "main": "index.js",
@@ -9,6 +9,6 @@
   "author": "Stephen Lombardi",
   "license": "UNLICENSED",
   "dependencies": {
-    "aws-sdk": "^2.2.47"
+    "mongodb": "^2.1.14"
   }
 }
